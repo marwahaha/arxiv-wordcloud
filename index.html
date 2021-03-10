@@ -13,6 +13,120 @@
         <li><a href="./uchicagocs/">UChicago CS Research</a> (14MB)</li>
         <li><a href="./berkeleyeecs/">Berkeley EECS Research</a> (29MB)</li>
     </ul>
+    <div>
+        Search an author: <input id="author" value="Nicholas E. Sherman"><button onclick="buildCloud()">Search</button>
+    </div>
+    <canvas id="canvas" style="margin:10px;" width="800" height="400"></canvas>
+
+    <script src="wordcloud2.js"></script>
+    <script>
+        // https://github.com/amueller/word_cloud/blob/5f23ed47727eb97c45883fd34f98cd62a1c8a55b/wordcloud/stopwords
+        var STOPWORDS = ["a", "about", "above", "after", "again", "against", "all", "also", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can", "can't", "cannot", "com", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "else", "ever", "few", "for", "from", "further", "get", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "hence", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "however", "http", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "just", "k", "let's", "like", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "otherwise", "ought", "our", "ours", "ourselves", "out", "over", "own", "r", "same", "shall", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "since", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "therefore", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "www", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"];
+        STOPWORDS.push("e.g.");
+        STOPWORDS.push("i.e.");
+        STOPWORDS.push("paper");
+        STOPWORDS.push("new");
+
+        // 'viridis' from matplotlib
+        var COLORS = [
+            'rgb(68.08602, 1.24287, 84.000825)',
+            'rgb(70.173705, 49.700775, 126.481275)',
+            'rgb(54.160725, 91.719165, 140.68605)',
+            'rgb(39.10782, 126.735, 142.21962)',
+            'rgb(31.18956, 161.454015, 135.25149)',
+            'rgb(73.674855, 193.39047, 109.24863)',
+            'rgb(159.777645, 217.934475, 56.955015)',
+            'rgb(253.27824, 231.070035, 36.70368)',
+        ];
+
+        function buildCloud() {
+            author = document.getElementById("author").value;
+            fetch("https://export.arxiv.org/api/query?search_query=au:%22" + author + "%22&max_results=200")
+                .then(r => r.text())
+                .then(t => {
+                    // get abstracts
+                    lines = t.split('\n');
+                    summaries = "";
+                    start = false;
+                    for (idx = 0; idx < lines.length; idx++) {
+                        if (lines[idx].indexOf("<summary>") !== -1) {
+                            start = true;
+                        }
+                        if (start) {
+                            cleaned = lines[idx].replace("</summary>", "").replace("<summary>", "");
+                            summaries += cleaned + " ";
+                        }
+                        if (lines[idx].indexOf("</summary>") !== -1) {
+                            start = false;
+                        }
+                    }
+                    // remove common words and math words
+                    words = summaries.split(/[ ,]+/)
+                        .filter(Boolean)
+                        .map(w => w.replace(/[\(\)\"\']/g, ''))
+                        .filter(w => STOPWORDS.indexOf(w.toLowerCase()) === -1)
+                        .filter(w => w.indexOf("$") === -1 && w.indexOf("\\") !== 0 && w.indexOf('&') !== 0)
+                        .filter(w => w.length >= 3);
+
+                    // remove plurals
+                    for (var idx = 0; idx < words.length; idx++) {
+                        if (words[idx].substr(-2) !== 'ss' && words[idx].substr(-1) === 's') {
+                            singular = words[idx].slice(0, -1)
+                            if (words.indexOf(singular) !== -1) {
+                                words[idx] = singular;
+                            }
+                        }
+                    }
+                    groupedWords = groupSimilar(words).sort((a, b) => b[1] - a[1]).slice(0, 200);
+
+                    // display wordcloud
+                    canvas = document.getElementById('canvas');
+                    width = parseInt(canvas.width, 10);
+                    height = parseInt(canvas.height, 10);
+                    var lastSize = (groupedWords[0] || [0, 0])[1];
+                    var lastWeight = height / 3;
+
+                    var rs = 0.9;
+                    WordCloud(canvas, {
+                        minSize: 4,
+                        list: groupedWords,
+                        gridSize: 8,
+                        weightFactor: function (size) {
+                            lastWeight = lastWeight * ((1 - rs) + rs * (size / lastSize));
+                            lastSize = size;
+                            return lastWeight;
+                        },
+
+                        color: function () {
+                            // random from 0 to 255
+                            val = parseInt((Math.random() * 8), 10);
+                            return COLORS[val];
+                        },
+                        rotateRatio: 0.1,
+                        rotationSteps: 2,
+                        backgroundColor: 'black',
+                        shape: 'square',
+                        ellipticity: 0.5,
+                    });
+                })
+        }
+
+        function groupSimilar(arr) {
+            return arr.reduce((acc, val) => {
+                const { data, map } = acc;
+                const ind = map.get(val);
+                if (map.has(val)) {
+                    data[ind][1]++;
+                } else {
+                    map.set(val, data.push([val, 1]) - 1);
+                }
+                return { data, map };
+            }, {
+                data: [],
+                map: new Map()
+            }).data;
+        };
+    </script>
 </body>
 
 </html>
