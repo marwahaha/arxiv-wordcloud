@@ -14,7 +14,7 @@
         <a href="./berkeleyeecs/">Berkeley EECS Research</a> (29MB)
     </p>
     <div>
-        Search an author: <input id="author" value="Rui Chao"><button onclick="buildCloud()">Search</button>
+        Search an author: <input id="author"><button onclick="updateParams()">Search</button>
     </div>
     <canvas id="canvas" style="margin:10px;" width="800" height="400"></canvas>
 
@@ -39,8 +39,15 @@
             'rgb(253.27824, 231.070035, 36.70368)',
         ];
 
-        function buildCloud() {
-            author = document.getElementById("author").value;
+        // fill canvas
+        canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext("2d");
+        ctx.beginPath();
+        ctx.rect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+
+        function buildCloud(author) {
             fetch("https://export.arxiv.org/api/query?search_query=au:%22" + author + "%22&max_results=200")
                 .then(r => r.text())
                 .then(t => {
@@ -78,6 +85,7 @@
                         }
                     }
                     groupedWords = groupSimilar(words).sort((a, b) => b[1] - a[1]).slice(0, 200);
+                    console.log(groupedWords);
 
                     // display wordcloud
                     canvas = document.getElementById('canvas');
@@ -126,6 +134,17 @@
                 map: new Map()
             }).data;
         };
+
+        if (window.location.search) {
+            if (window.location.search.indexOf("?author=") !== -1) {
+                author = document.getElementById("author").value = decodeURIComponent(window.location.search.substr(8));
+                buildCloud(author);
+            }
+        }
+
+        function updateParams() {
+            window.location.search = "?author=" + document.getElementById("author").value;
+        }
     </script>
 </body>
 
