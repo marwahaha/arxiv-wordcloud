@@ -8,13 +8,13 @@
 
 <body>
     <p>Create wordclouds from arXiv abstracts (<a href="https://github.com/marwahaha/arxiv-wordcloud">code here</a>)</p>
-    Examples:
-    <ul>
-        <li><a href="./uchicagocs/">UChicago CS Research</a> (14MB)</li>
-        <li><a href="./berkeleyeecs/">Berkeley EECS Research</a> (29MB)</li>
-    </ul>
+    <p>
+        Examples:
+        <a href="./uchicagocs/">UChicago CS Research</a> (14MB),
+        <a href="./berkeleyeecs/">Berkeley EECS Research</a> (29MB)
+    </p>
     <div>
-        Search an author: <input id="author" value="Nicholas E. Sherman"><button onclick="buildCloud()">Search</button>
+        Search an author: <input id="author" value="Rui Chao"><button onclick="buildCloud()">Search</button>
     </div>
     <canvas id="canvas" style="margin:10px;" width="800" height="400"></canvas>
 
@@ -63,7 +63,7 @@
                     // remove common words and math words
                     words = summaries.split(/[ ,]+/)
                         .filter(Boolean)
-                        .map(w => w.replace(/[\(\)\"\']/g, ''))
+                        .map(w => w.replace(/[\(\)\"\'\.]/g, ''))
                         .filter(w => STOPWORDS.indexOf(w.toLowerCase()) === -1)
                         .filter(w => w.indexOf("$") === -1 && w.indexOf("\\") !== 0 && w.indexOf('&') !== 0)
                         .filter(w => w.length >= 3);
