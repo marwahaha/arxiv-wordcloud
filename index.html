@@ -84,6 +84,16 @@
                             }
                         }
                     }
+                    // remove multicase
+                    for (var idx = 0; idx < words.length; idx++) {
+                        lowercase = words[idx].toLowerCase();
+                        if (words[idx] !== lowercase) {
+                            if (words.indexOf(lowercase) !== -1) {
+                                words[idx] = lowercase;
+                            }
+                        }
+                    }
+
                     groupedWords = groupSimilar(words).sort((a, b) => b[1] - a[1]).slice(0, 200);
                     console.log(groupedWords);
 
