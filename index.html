@@ -148,7 +148,7 @@
         if (window.location.search) {
             if (window.location.search.indexOf("?author=") !== -1) {
                 author = document.getElementById("author").value = decodeURIComponent(window.location.search.substr(8));
-                buildCloud(author);
+                buildCloud(author.replace('-', '_').replace("'", ""));
             }
         }
 
