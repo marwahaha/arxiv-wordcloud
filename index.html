@@ -48,7 +48,7 @@
         ctx.fill();
 
         function buildCloud(author) {
-            fetch("https://export.arxiv.org/api/query?search_query=au:%22" + author + "%22&max_results=200")
+            fetch("https://corsproxy.io/?http://export.arxiv.org/api/query?search_query=au:%22" + author + "%22&max_results=200")
                 .then(r => r.text())
                 .then(t => {
                     // get abstracts
