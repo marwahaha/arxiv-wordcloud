@@ -54,8 +54,12 @@
             var query = new URL('https://export.arxiv.org/api/query');
             query.searchParams.set('search_query', 'au:"' + author + '"');
             query.searchParams.set('max_results', '200');
-            // GitHub Pages has no backend and arXiv does not send CORS headers.
-            fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(query.href), {
+            // Serve this author's saved arXiv feed from the site itself. Public
+            // CORS proxies can time out or be blocked even when arXiv is working.
+            var savedAuthor = author.trim().toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') === 'kunal marwaha';
+            var feedUrl = savedAuthor ? 'feeds/kunal-marwaha.xml' :
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(query.href);
+            fetch(feedUrl, {
                 signal: AbortSignal.timeout(30000)
             })
                 .then(r => {
@@ -105,6 +109,10 @@
                         return;
                     }
                     status.textContent = 'Wordcloud from ' + entries.length + ' arXiv abstracts for ' + author + '.';
+                    if (savedAuthor) {
+                        var savedDate = feed.getElementsByTagNameNS('http://www.w3.org/2005/Atom', 'updated')[0]?.textContent;
+                        if (savedDate) status.textContent += ' Saved ' + savedDate.slice(0, 10) + '.';
+                    }
 
                     // display wordcloud
                     canvas = document.getElementById('canvas');
