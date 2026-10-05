@@ -13,9 +13,10 @@
         <a href="./uchicagocs/">UChicago CS Research</a> (14MB),
         <a href="./berkeleyeecs/">Berkeley EECS Research</a> (29MB)
     </p>
-    <div>
-        Search an author: <input id="author"><button onclick="updateParams()">Search</button>
-    </div>
+    <form onsubmit="updateParams(); return false;">
+        <label for="author">Search an author:</label> <input id="author" required><button type="submit">Search</button>
+    </form>
+    <p id="status" role="status" aria-live="polite"></p>
     <canvas id="canvas" style="margin:10px;" width="800" height="400"></canvas>
 
     <script src="wordcloud2.js"></script>
@@ -48,27 +49,31 @@
         ctx.fill();
 
         function buildCloud(author) {
-            fetch("https://corsproxy.io/?http://export.arxiv.org/api/query?search_query=au:%22" + author + "%22&max_results=200")
-                .then(r => r.text())
+            var status = document.getElementById('status');
+            status.textContent = 'Loading abstracts for ' + author + '…';
+            var query = new URL('https://export.arxiv.org/api/query');
+            query.searchParams.set('search_query', 'au:"' + author + '"');
+            query.searchParams.set('max_results', '200');
+            // GitHub Pages has no backend and arXiv does not send CORS headers.
+            fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(query.href), {
+                signal: AbortSignal.timeout(30000)
+            })
+                .then(r => {
+                    if (!r.ok) throw new Error('Request failed: ' + r.status);
+                    return r.text();
+                })
                 .then(t => {
-                    // get abstracts
-                    lines = t.split('\n');
-                    summaries = "";
-                    start = false;
-                    for (idx = 0; idx < lines.length; idx++) {
-                        if (lines[idx].indexOf("<summary>") !== -1) {
-                            start = true;
-                        }
-                        if (start) {
-                            cleaned = lines[idx].replace("</summary>", "").replace("<summary>", "");
-                            summaries += cleaned + " ";
-                        }
-                        if (lines[idx].indexOf("</summary>") !== -1) {
-                            start = false;
-                        }
+                    var feed = new DOMParser().parseFromString(t, 'application/xml');
+                    if (feed.querySelector('parsererror') || feed.documentElement.localName !== 'feed') {
+                        throw new Error('Invalid arXiv response');
                     }
+                    var entries = Array.from(feed.getElementsByTagNameNS('http://www.w3.org/2005/Atom', 'entry'));
+                    if (entries.some(entry => /\/api\/errors(?:#|$)/.test(entry.querySelector('id')?.textContent || ''))) {
+                        throw new Error('arXiv rejected the query');
+                    }
+                    var summaries = entries.map(entry => entry.querySelector('summary')?.textContent || '').join(' ');
                     // remove common words and math words
-                    words = summaries.split(/[ ,]+/)
+                    var words = summaries.split(/[\s,]+/)
                         .filter(Boolean)
                         .map(w => w.replace(/[\(\)\"\'\.]/g, ''))
                         .filter(w => STOPWORDS.indexOf(w.toLowerCase()) === -1)
@@ -94,8 +99,12 @@
                         }
                     }
 
-                    groupedWords = groupSimilar(words).sort((a, b) => b[1] - a[1]).slice(0, 200);
-                    console.log(groupedWords);
+                    var groupedWords = groupSimilar(words).sort((a, b) => b[1] - a[1]).slice(0, 200);
+                    if (!groupedWords.length) {
+                        status.textContent = 'No abstracts found for ' + author + '.';
+                        return;
+                    }
+                    status.textContent = 'Wordcloud from ' + entries.length + ' arXiv abstracts for ' + author + '.';
 
                     // display wordcloud
                     canvas = document.getElementById('canvas');
@@ -127,6 +136,10 @@
                         ellipticity: 0.5,
                     });
                 })
+                .catch(error => {
+                    console.error(error);
+                    status.textContent = 'Could not load arXiv abstracts. Please try searching again.';
+                });
         }
 
         function groupSimilar(arr) {
@@ -145,15 +158,19 @@
             }).data;
         };
 
-        if (window.location.search) {
-            if (window.location.search.indexOf("?author=") !== -1) {
-                author = document.getElementById("author").value = decodeURIComponent(window.location.search.substr(8));
-                buildCloud(author.replace('-', '_').replace("'", ""));
-            }
+        var params = new URLSearchParams(window.location.search);
+        var author = params.get('author');
+        if (author && author.trim()) {
+            document.getElementById('author').value = author;
+            buildCloud(author.trim().replace(/-/g, '_').replace(/'/g, ''));
         }
 
         function updateParams() {
-            window.location.search = "?author=" + document.getElementById("author").value;
+            var author = document.getElementById('author').value.trim();
+            if (!author) return;
+            var params = new URLSearchParams(window.location.search);
+            params.set('author', author);
+            window.location.search = params.toString();
         }
     </script>
 </body>
