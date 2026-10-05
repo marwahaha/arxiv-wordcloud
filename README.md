@@ -9,4 +9,4 @@ ls *.pn | while read -r file; do mv $file ${file}g; done
 ```
 
 
-Kunal Marwaha's search uses the saved arXiv feed in `feeds/kunal-marwaha.xml`, served directly by GitHub Pages. Refresh it manually with `python3 scripts/refresh-abstracts.py`, then commit the updated feed. The script validates the response before replacing the previous snapshot. The page displays the snapshot date. Other author searches still depend on the public AllOrigins proxy.
+Author searches fetch the live arXiv Atom feed through `https://proxy.cors.dev/`, because arXiv does not send browser CORS headers. The target query uses HTTPS and URLSearchParams. No author-specific snapshots or API keys are used. The anonymous proxy can impose rate, size, or upstream timeout limits; failed requests produce a visible retry message.
